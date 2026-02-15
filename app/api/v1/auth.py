@@ -14,8 +14,10 @@ async def register(
     user_in: UserCreate,
     db: AsyncSession = Depends(get_db)
 ) -> Any:
+    print(f"DEBUG: Router received register request for {user_in.email}")
     auth_service = AuthService(db)
     user = await auth_service.register_user(user_in)
+    print(f"DEBUG: Router sending success response for {user.email}")
     return StandardResponse.success({
         "id": user.id,
         "email": user.email,

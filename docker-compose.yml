@@ -11,6 +11,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./exports:/app/exports
+      - ./app:/app/app
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///./data/teamledger.db
       - SECRET_KEY=CHANGE_THIS_TO_A_SECURE_RANDOM_KEY_IN_PRODUCTION

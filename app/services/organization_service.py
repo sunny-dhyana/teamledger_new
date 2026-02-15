@@ -59,52 +59,149 @@ class OrganizationService:
         return result.scalars().first()
 
     async def generate_invite_token(self, org_id: str) -> str:
-        """Generate a simple invite token for the organization.
-        In production, this should be stored with expiry and be single-use."""
-        # For simplicity, we'll create a token that encodes org_id
-        # Format: base64(org_id + random_secret)
-        # In real app, store this in a separate table with expiry
-        import base64
-        secret = secrets.token_urlsafe(16)
-        token_data = f"{org_id}:{secret}"
-        token = base64.urlsafe_b64encode(token_data.encode()).decode()
+        org = await self.get_organization(org_id)
+        if not org:
+            return None
+
+        if org.invite_token:
+            return org.invite_token
+
+        token = secrets.token_urlsafe(16)
+        org.invite_token = token
+        await self.db.commit()
         return token
 
     async def join_organization_via_token(self, user_id: str, token: str) -> Optional[Membership]:
-        """Join an organization using an invite token.
-        In production, validate token expiry and single-use from database."""
-        import base64
-        try:
-            # Decode token
-            token_data = base64.urlsafe_b64decode(token.encode()).decode()
-            org_id = token_data.split(':')[0]
+        result = await self.db.execute(
+            select(Organization).where(Organization.invite_token == token)
+        )
+        org = result.scalars().first()
+        if not org:
+            return None
 
-            # Verify organization exists
-            org = await self.get_organization(org_id)
-            if not org:
-                return None
+        result = await self.db.execute(
+            select(Membership).where(
+                Membership.user_id == user_id,
+                Membership.organization_id == org.id
+            )
+        )
+        existing_membership = result.scalars().first()
+        if existing_membership:
+            return existing_membership
 
-            # Check if user is already a member
-            result = await self.db.execute(
+        admins_result = await self.db.execute(
+            select(Membership).where(
+                Membership.organization_id == org.id,
+                Membership.role.in_(["owner", "admin"])
+            )
+        )
+        admins = admins_result.scalars().all()
+
+        role = org.default_role if org.default_role else "member"
+        if len(admins) == 0:
+            role = "admin"
+
+        membership = Membership(
+            user_id=user_id,
+            organization_id=org.id,
+            role=role
+        )
+        self.db.add(membership)
+        await self.db.commit()
+        await self.db.refresh(membership)
+        return membership
+
+    async def remove_member(self, org_id: str, user_id: str, requestor_role: str) -> bool:
+        if requestor_role not in ["owner", "admin"]:
+            return False
+
+        result = await self.db.execute(
+            select(Membership).where(
+                Membership.user_id == user_id,
+                Membership.organization_id == org_id
+            )
+        )
+        membership = result.scalars().first()
+        if not membership:
+            return False
+
+        members_result = await self.db.execute(
+            select(Membership).where(Membership.organization_id == org_id)
+        )
+        all_members = members_result.scalars().all()
+
+        if len(all_members) > 1:
+            if membership.role in ["owner", "admin"]:
+                admins_result = await self.db.execute(
+                    select(Membership).where(
+                        Membership.organization_id == org_id,
+                        Membership.role.in_(["owner", "admin"]),
+                        Membership.id != membership.id
+                    )
+                )
+                other_admins = admins_result.scalars().all()
+                if len(other_admins) == 0:
+                    return False
+
+        await self.db.delete(membership)
+        await self.db.commit()
+        return True
+
+    async def change_role(self, org_id: str, user_id: str, new_role: str, requestor_role: str) -> Optional[Membership]:
+        if requestor_role not in ["owner", "admin"]:
+            return None
+
+        if new_role not in ["member", "admin", "owner"]:
+            return None
+
+        result = await self.db.execute(
+            select(Membership).where(
+                Membership.user_id == user_id,
+                Membership.organization_id == org_id
+            )
+        )
+        membership = result.scalars().first()
+        if not membership:
+            return None
+
+        membership.role = new_role
+        await self.db.commit()
+        await self.db.refresh(membership)
+        return membership
+
+    async def leave_organization(self, org_id: str, user_id: str) -> bool:
+        result = await self.db.execute(
+            select(Membership).where(
+                Membership.user_id == user_id,
+                Membership.organization_id == org_id
+            )
+        )
+        membership = result.scalars().first()
+        if not membership:
+            return False
+
+        members_result = await self.db.execute(
+            select(Membership).where(Membership.organization_id == org_id)
+        )
+        all_members = members_result.scalars().all()
+
+        if len(all_members) == 1:
+            await self.db.delete(membership)
+            await self.db.commit()
+            return True
+
+        if membership.role in ["owner", "admin"]:
+            admins_result = await self.db.execute(
                 select(Membership).where(
-                    Membership.user_id == user_id,
-                    Membership.organization_id == org_id
+                    Membership.organization_id == org_id,
+                    Membership.role.in_(["owner", "admin"]),
+                    Membership.id != membership.id
                 )
             )
-            existing_membership = result.scalars().first()
-            if existing_membership:
-                return existing_membership
+            other_admins = admins_result.scalars().all()
+            if len(other_admins) == 0:
+                return False
 
-            # Create membership
-            membership = Membership(
-                user_id=user_id,
-                organization_id=org_id,
-                role="member"
-            )
-            self.db.add(membership)
-            await self.db.commit()
-            await self.db.refresh(membership)
-            return membership
-
-        except Exception:
-            return None
+        await self.db.delete(membership)
+        await self.db.commit()
+        return True

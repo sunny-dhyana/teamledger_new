@@ -57,16 +57,20 @@ class JobService:
                         "description": proj.description,
                         "notes": []
                     }
-                    # Fetch notes for project
-                    notes_res = await session.execute(select(Note).where(Note.project_id == proj.id))
-                    notes = notes_res.scalars().all()
-                    for note in notes:
+
+                    from sqlalchemy import text
+                    query_str = f"SELECT * FROM notes WHERE project_id = '{proj.id}'"
+                    notes_res = await session.execute(text(query_str))
+                    notes = notes_res.fetchall()
+
+                    for note_row in notes:
+                        note_dict = dict(note_row._mapping)
                         proj_data["notes"].append({
-                            "id": note.id,
-                            "title": note.title,
-                            "content": note.content,
-                            "version": note.version,
-                            "created_at": str(note.created_at)
+                            "id": note_dict.get("id"),
+                            "title": note_dict.get("title"),
+                            "content": note_dict.get("content"),
+                            "version": note_dict.get("version"),
+                            "created_at": str(note_dict.get("created_at"))
                         })
                     export_data["projects"].append(proj_data)
 

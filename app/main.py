@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.router import api_router
 from app.core.response import StandardResponse
+from app import models  # Ensure all models are imported
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

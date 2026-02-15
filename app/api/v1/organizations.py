@@ -2,7 +2,8 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_current_active_user
+from app.core.deps import get_current_user, get_current_active_user, get_request_context
+from app.core.permissions import RequestContext
 from app.models.user import User
 from app.schemas.organization import OrganizationCreate, OrganizationResponse, OrganizationUpdate, InviteTokenResponse, JoinOrganizationRequest
 from app.schemas.auth import Token
@@ -94,3 +95,62 @@ async def join_organization(
         "message": "Successfully joined organization",
         "organization_id": membership.organization_id
     })
+
+@router.post("/{org_id}/members/{user_id}/remove")
+async def remove_member(
+    org_id: str,
+    user_id: str,
+    context: RequestContext = Depends(get_request_context),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    if context.org_id != org_id:
+        raise HTTPException(status_code=403, detail="Not your active organization")
+
+    context.permissions.require_admin()
+
+    org_service = OrganizationService(db)
+    success = await org_service.remove_member(org_id, user_id, context.role)
+
+    if not success:
+        raise HTTPException(status_code=400, detail="Cannot remove member")
+
+    return StandardResponse.success({"message": "Member removed successfully"})
+
+@router.put("/{org_id}/members/{user_id}/role")
+async def change_member_role(
+    org_id: str,
+    user_id: str,
+    new_role: str,
+    context: RequestContext = Depends(get_request_context),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    if context.org_id != org_id:
+        raise HTTPException(status_code=403, detail="Not your active organization")
+
+    context.permissions.require_admin()
+
+    org_service = OrganizationService(db)
+    membership = await org_service.change_role(org_id, user_id, new_role, context.role)
+
+    if not membership:
+        raise HTTPException(status_code=400, detail="Cannot change role")
+
+    return StandardResponse.success({
+        "user_id": user_id,
+        "role": membership.role,
+        "message": "Role updated successfully"
+    })
+
+@router.post("/{org_id}/leave")
+async def leave_organization(
+    org_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    org_service = OrganizationService(db)
+    success = await org_service.leave_organization(org_id, current_user.id)
+
+    if not success:
+        raise HTTPException(status_code=400, detail="Cannot leave organization")
+
+    return StandardResponse.success({"message": "Left organization successfully"})

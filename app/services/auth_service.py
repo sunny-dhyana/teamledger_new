@@ -47,8 +47,9 @@ class AuthService:
     async def create_user_token(self, user: User, org_id: Optional[str] = None) -> Token:
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-        # Look up actual role if org_id is provided
-        role = "member"
+        role = None
+        membership_id = None
+
         if org_id:
             result = await self.db.execute(
                 select(Membership).where(
@@ -57,10 +58,19 @@ class AuthService:
                 )
             )
             membership = result.scalars().first()
-            if membership:
-                role = membership.role
+            if not membership:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Not a member of this organization"
+                )
+            role = membership.role
+            membership_id = membership.id
 
-        claims = {"org_id": org_id, "role": role}
+        claims = {
+            "org_id": org_id,
+            "role": role,
+            "membership_id": membership_id
+        }
 
         access_token = create_access_token(
             subject=user.id, expires_delta=access_token_expires, claims=claims

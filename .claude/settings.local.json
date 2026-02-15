@@ -3,7 +3,10 @@
     "allow": [
       "Bash(find:*)",
       "Bash(python:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(sudo docker compose build:*)",
+      "Bash(docker compose build:*)"
     ]
   }
 }

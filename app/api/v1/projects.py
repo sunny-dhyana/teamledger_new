@@ -1,13 +1,15 @@
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Any, List, Dict
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.deps import get_current_org
+from app.core.deps import get_current_org, get_request_context
+from app.core.permissions import RequestContext
 from app.models.organization import Organization
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.project_service import ProjectService
 from app.services.usage_service import UsageService
 from app.services.job_service import JobService
+from app.services.import_service import ImportService
 from app.schemas.job import JobResponse
 from fastapi import BackgroundTasks
 from app.core.response import StandardResponse
@@ -121,4 +123,30 @@ async def export_project(
         "result_path": job.result_path,
         "created_at": job.created_at.isoformat(),
         "completed_at": job.completed_at.isoformat() if job.completed_at else None
+    })
+
+@router.post("/import")
+async def import_project(
+    data: Dict[str, Any] = Body(...),
+    context: RequestContext = Depends(get_request_context),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    context.permissions.require_write()
+
+    import_service = ImportService(db)
+    project = await import_service.import_project(
+        org_id=context.org_id,
+        data=data,
+        created_by=context.user_id
+    )
+
+    return StandardResponse.success({
+        "id": project.id,
+        "organization_id": project.organization_id,
+        "name": project.name,
+        "description": project.description,
+        "status": project.status,
+        "created_at": project.created_at.isoformat(),
+        "updated_at": project.updated_at.isoformat(),
+        "message": "Project imported successfully"
     })

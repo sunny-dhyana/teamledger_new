@@ -15,6 +15,7 @@ class StandardResponse:
     @staticmethod
     def error(error: str) -> dict:
         """Wrap error response."""
+        print(f"DEBUG: StandardResponse.error called with: {error}")
         return {
             "success": False,
             "error": error

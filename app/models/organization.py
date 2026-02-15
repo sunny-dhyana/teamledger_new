@@ -9,6 +9,8 @@ class Organization(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String, index=True)
     slug: Mapped[str] = mapped_column(String, unique=True, index=True)
+    invite_token: Mapped[str] = mapped_column(String, nullable=True, unique=True, index=True)
+    default_role: Mapped[str] = mapped_column(String, default="member")
 
     memberships = relationship("Membership", back_populates="organization", cascade="all, delete-orphan")
     projects = relationship("Project", back_populates="organization", cascade="all, delete-orphan")
