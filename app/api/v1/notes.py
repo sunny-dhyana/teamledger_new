@@ -241,6 +241,7 @@ async def get_shared_note(
     
     return StandardResponse.success({
         "id": note.id,
+        "project_id": note.project_id,
         "title": note.title,
         "content": note.content,
         "created_at": note.created_at.isoformat(),

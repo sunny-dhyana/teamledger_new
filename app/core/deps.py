@@ -70,9 +70,18 @@ async def get_request_context(
         usage_service = UsageService(db)
         await usage_service.increment_usage(api_key_obj.organization_id, "api_calls")
 
+        from app.models.membership import Membership
+        membership_result = await db.execute(
+            select(Membership).where(Membership.organization_id == api_key_obj.organization_id).limit(1)
+        )
+        membership = membership_result.scalars().first()
+        user_id = membership.user_id if membership else None
+
         return RequestContext(
             org_id=api_key_obj.organization_id,
-            api_key=api_key_obj
+            user_id=user_id,
+            api_key=api_key_obj,
+            role=api_key_obj.scopes
         )
 
     if not token:

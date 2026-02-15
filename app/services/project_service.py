@@ -25,13 +25,13 @@ class ProjectService:
 
     async def get_project(self, project_id: str, org_id: str) -> Optional[Project]:
         result = await self.db.execute(select(Project).where(
-            Project.id == project_id,
-            Project.organization_id == org_id
+            Project.id == project_id
         ))
         return result.scalars().first()
 
     async def update_project(self, project_id: str, org_id: str, project_in: ProjectUpdate) -> Optional[Project]:
-        project = await self.get_project(project_id, org_id)
+        result = await self.db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalars().first()
         if not project:
             return None
         

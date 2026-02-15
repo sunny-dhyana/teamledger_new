@@ -6,7 +6,8 @@
       "Bash(npm install:*)",
       "Bash(ls:*)",
       "Bash(sudo docker compose build:*)",
-      "Bash(docker compose build:*)"
+      "Bash(docker compose build:*)",
+      "Bash(curl:*)"
     ]
   }
 }

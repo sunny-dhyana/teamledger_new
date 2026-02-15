@@ -1,0 +1,19 @@
+{
+  "organization_id": "363e3118-1b59-4d03-ba66-91534758b8be",
+  "projects": [
+    {
+      "id": "cd652cd0-ecee-4c48-8066-2ba99b2e363f",
+      "name": "SensitiveProject",
+      "description": "Test project",
+      "notes": [
+        {
+          "id": "0fb13fd4-2ec2-4677-ba88-02979dc8b9dc",
+          "title": "SensitiveNote",
+          "content": "CONFIDENTIAL DATA",
+          "version": 1,
+          "created_at": "2026-02-15 20:58:24.178310"
+        }
+      ]
+    }
+  ]
+}

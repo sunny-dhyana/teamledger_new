@@ -41,11 +41,11 @@ async def create_project(
 
 @router.get("/")
 async def list_projects(
-    current_org: Organization = Depends(get_current_org),
+    context: RequestContext = Depends(get_request_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     project_service = ProjectService(db)
-    projects = await project_service.get_projects(current_org.id)
+    projects = await project_service.get_projects(context.org_id)
     return StandardResponse.success([{
         "id": p.id,
         "organization_id": p.organization_id,
@@ -59,11 +59,11 @@ async def list_projects(
 @router.get("/{project_id}")
 async def get_project(
     project_id: str,
-    current_org: Organization = Depends(get_current_org),
+    context: RequestContext = Depends(get_request_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     project_service = ProjectService(db)
-    project = await project_service.get_project(project_id, current_org.id)
+    project = await project_service.get_project(project_id, context.org_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return StandardResponse.success({
@@ -80,11 +80,11 @@ async def get_project(
 async def update_project(
     project_id: str,
     project_in: ProjectUpdate,
-    current_org: Organization = Depends(get_current_org),
+    context: RequestContext = Depends(get_request_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     project_service = ProjectService(db)
-    project = await project_service.update_project(project_id, current_org.id, project_in)
+    project = await project_service.update_project(project_id, context.org_id, project_in)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return StandardResponse.success({

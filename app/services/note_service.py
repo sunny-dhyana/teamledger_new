@@ -25,8 +25,7 @@ class NoteService:
 
     async def get_notes(self, project_id: str, org_id: str) -> List[Note]:
         result = await self.db.execute(select(Note).where(
-            Note.project_id == project_id,
-            Note.organization_id == org_id
+            Note.project_id == project_id
         ))
         return result.scalars().all()
 
@@ -108,14 +107,10 @@ class NoteService:
         note = await self.get_note_by_share_token(share_token)
         if not note:
             return None
-            
-        if note.share_access_level != "edit":
-            return None
-            
-        # Only allow content update for shared notes
+
         note.content = note_in.content
         note.version += 1
-        
+
         self.db.add(note)
         await self.db.commit()
         await self.db.refresh(note)

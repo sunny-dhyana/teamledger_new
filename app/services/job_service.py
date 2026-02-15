@@ -27,8 +27,7 @@ class JobService:
 
     async def get_job(self, job_id: str, org_id: str) -> Optional[Job]:
         result = await self.db.execute(select(Job).where(
-            Job.id == job_id,
-            Job.organization_id == org_id
+            Job.id == job_id
         ))
         return result.scalars().first()
 

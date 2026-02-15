@@ -16,11 +16,11 @@ router = APIRouter()
 @router.get("/{job_id}")
 async def get_job_status(
     job_id: str,
-    current_org: Organization = Depends(get_current_org),
+    context: RequestContext = Depends(get_request_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     service = JobService(db)
-    job = await service.get_job(job_id, current_org.id)
+    job = await service.get_job(job_id, context.org_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return StandardResponse.success({

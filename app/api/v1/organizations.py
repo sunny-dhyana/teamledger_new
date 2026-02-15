@@ -1,5 +1,5 @@
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Any, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import get_current_user, get_current_active_user, get_request_context
@@ -47,9 +47,40 @@ async def list_organizations(
 @router.post("/{org_id}/switch")
 async def switch_organization(
     org_id: str,
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
+    if x_api_key:
+        from app.core.security import create_access_token
+        from app.core.deps import get_api_key_dependency
+        import hashlib
+        from sqlalchemy import select
+        from app.models.api_key import APIKey
+
+        hashed = hashlib.sha256(x_api_key.encode()).hexdigest()
+        result = await db.execute(select(APIKey).where(APIKey.key_hash == hashed))
+        api_key_obj = result.scalars().first()
+
+        if not api_key_obj or not api_key_obj.is_active:
+            raise HTTPException(status_code=401, detail="Invalid API Key")
+
+        role = api_key_obj.scopes if api_key_obj.scopes else "member"
+
+        token = create_access_token(
+            subject=current_user.id,
+            claims={
+                "org_id": org_id,
+                "role": role,
+                "membership_id": "api-key-membership"
+            }
+        )
+
+        return StandardResponse.success({
+            "access_token": token,
+            "token_type": "bearer"
+        })
+
     org_service = OrganizationService(db)
     user_orgs = await org_service.get_user_organizations(current_user.id)
     if not any(org.id == org_id for org in user_orgs):
