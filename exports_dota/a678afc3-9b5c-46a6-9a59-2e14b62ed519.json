@@ -1,0 +1,19 @@
+{
+  "organization_id": "2c04b8e7-3db3-424b-a0c7-d3bda48d7efb",
+  "projects": [
+    {
+      "id": "5f95f0b9-24ef-40ee-ae79-520eac0eece2",
+      "name": "Project X",
+      "description": "Top Secret",
+      "notes": [
+        {
+          "id": "8d125108-14da-40d6-a147-cd63bd9f6d21",
+          "title": "Meeting Notes",
+          "content": "Discussed world domination.",
+          "version": 1,
+          "created_at": "2026-02-11 22:07:44.832912"
+        }
+      ]
+    }
+  ]
+}

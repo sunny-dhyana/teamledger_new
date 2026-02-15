@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: teamledger-backend-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./data:/app/data
+      - ./exports:/app/exports
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/teamledger.db
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - FRONTEND_URL=http://localhost:3000
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  frontend:
+    image: node:18-alpine
+    container_name: teamledger-frontend-dev
+    working_dir: /frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/frontend
+      - /frontend/node_modules
+    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
+    depends_on:
+      - backend

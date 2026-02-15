@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: teamledger
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./exports:/app/exports
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/teamledger.db
+      - SECRET_KEY=CHANGE_THIS_TO_A_SECURE_RANDOM_KEY_IN_PRODUCTION
+      - FRONTEND_URL=http://localhost:8000
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
