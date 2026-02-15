@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import secrets
 from app.models.note import Note
-from app.schemas.note import NoteCreate, NoteUpdate
+from app.schemas.note import NoteCreate, NoteUpdate, SharedNoteUpdate
 
 class NoteService:
     def __init__(self, db: AsyncSession):
@@ -55,7 +55,7 @@ class NoteService:
         await self.db.refresh(note)
         return note
 
-    async def generate_share_token(self, note_id: str, project_id: str, org_id: str) -> Optional[str]:
+    async def generate_share_token(self, note_id: str, project_id: str, org_id: str, access_level: str = "view") -> Optional[str]:
         """Generate a unique share token for a note"""
         note = await self.get_note(note_id, project_id, org_id)
         if not note:
@@ -63,11 +63,18 @@ class NoteService:
         
         # If already has a share token, return it
         if note.share_token:
+            # If access level changed, update it
+            if note.share_access_level != access_level:
+                note.share_access_level = access_level
+                self.db.add(note)
+                await self.db.commit()
+                await self.db.refresh(note)
             return note.share_token
         
         # Generate a secure random token
         share_token = secrets.token_urlsafe(32)
         note.share_token = share_token
+        note.share_access_level = access_level
         
         self.db.add(note)
         await self.db.commit()
@@ -82,6 +89,7 @@ class NoteService:
             return False
         
         note.share_token = None
+        note.share_access_level = "view" # Reset to default
         
         self.db.add(note)
         await self.db.commit()
@@ -94,3 +102,21 @@ class NoteService:
             Note.share_token == share_token
         ))
         return result.scalars().first()
+
+    async def update_shared_note(self, share_token: str, note_in: SharedNoteUpdate) -> Optional[Note]:
+        """Update a shared note content if access level permits"""
+        note = await self.get_note_by_share_token(share_token)
+        if not note:
+            return None
+            
+        if note.share_access_level != "edit":
+            return None
+            
+        # Only allow content update for shared notes
+        note.content = note_in.content
+        note.version += 1
+        
+        self.db.add(note)
+        await self.db.commit()
+        await self.db.refresh(note)
+        return note

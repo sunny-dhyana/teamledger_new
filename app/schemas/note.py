@@ -22,6 +22,7 @@ class NoteResponse(NoteBase):
     created_at: datetime
     updated_at: datetime
     is_shared: bool = False
+    share_access_level: str = "view"
 
     class Config:
         from_attributes = True
@@ -29,3 +30,7 @@ class NoteResponse(NoteBase):
 class ShareLinkResponse(BaseModel):
     share_url: str
     share_token: str
+    access_level: str
+
+class SharedNoteUpdate(BaseModel):
+    content: str

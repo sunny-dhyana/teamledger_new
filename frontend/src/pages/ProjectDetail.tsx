@@ -22,6 +22,9 @@ const ProjectDetail: React.FC = () => {
   const [projectDescription, setProjectDescription] = useState('');
   const [projectStatus, setProjectStatus] = useState('');
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareAccessLevel, setShareAccessLevel] = useState<'view' | 'edit'>('view');
+  const [shareNote, setShareNote] = useState<Note | null>(null);
+  const [isShareConfigModalOpen, setIsShareConfigModalOpen] = useState(false);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -113,14 +116,26 @@ const ProjectDetail: React.FC = () => {
     }
   };
 
-  const handleGenerateShareLink = async (noteId: string) => {
+  const openShareConfigModal = (note: Note) => {
+    setShareNote(note);
+    setShareAccessLevel('view'); // Default
+    setIsShareConfigModalOpen(true);
+  };
+
+  const handleGenerateShareLink = async () => {
+    if (!shareNote) return;
+
     try {
-      const response = await notesApi.generateShareLink(projectId!, noteId);
+      const response = await notesApi.generateShareLink(projectId!, shareNote.id, shareAccessLevel);
       if (response.success && response.data) {
         setShareUrl(response.data.share_url);
+        setIsShareConfigModalOpen(false);
+        setShareNote(null);
+        loadProjectData(); // Reload to update UI
       }
     } catch (error) {
       console.error('Failed to generate share link:', error);
+      alert('Failed to generate share link');
     }
   };
 
@@ -301,7 +316,7 @@ const ProjectDetail: React.FC = () => {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleGenerateShareLink(note.id)}
+                            onClick={() => openShareConfigModal(note)}
                             className="text-green-600 hover:underline text-sm"
                           >
                             Share
@@ -444,6 +459,54 @@ const ProjectDetail: React.FC = () => {
               >
                 Copy to Clipboard
               </button>
+            </div>
+          </Modal>
+
+          {/* Share Configuration Modal */}
+          <Modal
+            isOpen={isShareConfigModalOpen}
+            onClose={() => {
+              setIsShareConfigModalOpen(false);
+              setShareNote(null);
+            }}
+            title="Share Note"
+          >
+            <div className="space-y-4">
+              <p className="text-gray-600">
+                Configure sharing settings for <strong>{shareNote?.title}</strong>.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Access Level</label>
+                <select
+                  value={shareAccessLevel}
+                  onChange={(e) => setShareAccessLevel(e.target.value as 'view' | 'edit')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="view">View Only (Read access)</option>
+                  <option value="edit">Edit (Who has link can edit)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {shareAccessLevel === 'view'
+                    ? 'Users with the link can only view the note content.'
+                    : 'Users with the link can view and edit the note content anonymously.'}
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <button
+                  onClick={() => setIsShareConfigModalOpen(false)}
+                  className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleGenerateShareLink}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                >
+                  Generate Link
+                </button>
+              </div>
             </div>
           </Modal>
         </div>

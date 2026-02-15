@@ -30,9 +30,9 @@ export const notesApi = {
     return response.data;
   },
 
-  generateShareLink: async (projectId: string, noteId: string) => {
-    const response = await api.post<ApiResponse<{ share_url: string; share_token: string }>>(
-      `/notes/${noteId}/share?project_id=${projectId}`
+  generateShareLink: async (projectId: string, noteId: string, accessLevel: 'view' | 'edit' = 'view') => {
+    const response = await api.post<ApiResponse<{ share_url: string; share_token: string; access_level: string }>>(
+      `/notes/${noteId}/share?project_id=${projectId}&access_level=${accessLevel}`
     );
     return response.data;
   },
@@ -46,6 +46,14 @@ export const notesApi = {
 
   getSharedNote: async (shareToken: string) => {
     const response = await api.get<ApiResponse<Note>>(`/notes/shared/${shareToken}`);
+    return response.data;
+  },
+
+  updateSharedNote: async (shareToken: string, content: string) => {
+    const response = await api.put<ApiResponse<Note>>(
+      `/notes/shared/${shareToken}`,
+      { content }
+    );
     return response.data;
   },
 };

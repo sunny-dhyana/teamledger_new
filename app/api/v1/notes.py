@@ -6,12 +6,13 @@ from app.core.deps import get_current_org, get_current_user, get_api_key_depende
 from app.models.organization import Organization
 from app.models.user import User
 from app.models.api_key import APIKey
-from app.schemas.note import NoteCreate, NoteResponse, NoteUpdate
+from app.schemas.note import NoteCreate, NoteResponse, NoteUpdate, SharedNoteUpdate
 from app.services.note_service import NoteService
 from app.services.usage_service import UsageService
 from app.core.config import settings
 from app.core.response import StandardResponse
 from jose import jwt
+
 
 router = APIRouter()
 
@@ -183,15 +184,20 @@ async def update_note(
     })
 
 @router.post("/{note_id}/share")
+
 async def generate_share_link(
     note_id: str,
     project_id: str,
+    access_level: str = "view",
     current_org: Organization = Depends(get_current_org),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Generate a shareable link for a note"""
+    if access_level not in ["view", "edit"]:
+        raise HTTPException(status_code=400, detail="Invalid access level")
+        
     note_service = NoteService(db)
-    share_token = await note_service.generate_share_token(note_id, project_id, current_org.id)
+    share_token = await note_service.generate_share_token(note_id, project_id, current_org.id, access_level)
     
     if not share_token:
         raise HTTPException(status_code=404, detail="Note not found")
@@ -201,7 +207,8 @@ async def generate_share_link(
     
     return StandardResponse.success({
         "share_url": share_url,
-        "share_token": share_token
+        "share_token": share_token,
+        "access_level": access_level
     })
 
 @router.delete("/{note_id}/share")
@@ -237,5 +244,26 @@ async def get_shared_note(
         "title": note.title,
         "content": note.content,
         "created_at": note.created_at.isoformat(),
+        "updated_at": note.updated_at.isoformat(),
+        "access_level": note.share_access_level
+    })
+
+@router.put("/shared/{share_token}")
+async def update_shared_note(
+    share_token: str,
+    note_in: SharedNoteUpdate,
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Update a shared note (if access level permits)"""
+    note_service = NoteService(db)
+    note = await note_service.update_shared_note(share_token, note_in)
+    
+    if not note:
+        raise HTTPException(status_code=403, detail="Note not found or edit permission denied")
+    
+    return StandardResponse.success({
+        "id": note.id,
+        "title": note.title,
+        "content": note.content,
         "updated_at": note.updated_at.isoformat()
     })

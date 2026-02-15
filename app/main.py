@@ -69,7 +69,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    return {"status": "ok_v2"}
 
 # Catch-all route for SPA
 @app.get("/{rest_of_path:path}")

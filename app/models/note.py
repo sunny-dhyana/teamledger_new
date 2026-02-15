@@ -17,6 +17,7 @@ class Note(Base, TimestampMixin):
     version: Mapped[int] = mapped_column(Integer, default=1)
     created_by: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
     share_token: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True, index=True)
+    share_access_level: Mapped[str] = mapped_column(String, default="view")
 
     project = relationship("Project", back_populates="notes")
     organization = relationship("Organization")
